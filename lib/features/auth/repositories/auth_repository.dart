@@ -26,4 +26,22 @@ class AuthRepository {
       throw Exception('Error de conexión con el servidor');
     }
   }
+
+  // 🔥 NUEVO: Método para registrar al cliente
+  Future<Map<String, dynamic>> register(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/auth/register', data: data);
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        // NestJS suele devolver un array de errores en class-validator
+        final message = e.response?.data['message'];
+        if (message is List) {
+          throw Exception(message.join(', '));
+        }
+        throw Exception(message ?? 'Error al registrar la cuenta');
+      }
+      throw Exception('Error de conexión con el servidor');
+    }
+  }
 }

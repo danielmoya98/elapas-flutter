@@ -5,32 +5,32 @@ import 'package:elapas_app/features/technician/repositories/work_order_repositor
 import 'package:elapas_app/features/technician/repositories/upload_repository.dart';
 import 'package:elapas_app/core/services/sensor_service.dart';
 
-class TechReadingsTab extends ConsumerStatefulWidget {
-  const TechReadingsTab({super.key});
+class TechInstallationsTab extends ConsumerStatefulWidget {
+  const TechInstallationsTab({super.key});
 
   @override
-  ConsumerState<TechReadingsTab> createState() => _TechReadingsTabState();
+  ConsumerState<TechInstallationsTab> createState() =>
+      _TechInstallationsTabState();
 }
 
-class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
+class _TechInstallationsTabState extends ConsumerState<TechInstallationsTab> {
   bool _isLoading = true;
-  List<dynamic> _readingOrders = [];
+  List<dynamic> _installations = [];
   final SensorService _sensorService = SensorService();
 
   @override
   void initState() {
     super.initState();
-    _loadReadingOrders();
+    _loadInstallations();
   }
 
-  Future<void> _loadReadingOrders() async {
+  Future<void> _loadInstallations() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(workOrderRepositoryProvider);
-      // 🔥 Pedimos específicamente las órdenes tipo 'READING'
-      final data = await repo.getAssignedWorkOrders(type: 'READING');
-      setState(() => _readingOrders = data);
+      final data = await repo.getAssignedInstallations();
+      setState(() => _installations = data);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -41,11 +41,8 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
     }
   }
 
-  Future<void> _executeReading(dynamic order) async {
-    final readingController = TextEditingController();
-    final previousReading = order['meter']?['readings']?.isNotEmpty == true
-        ? order['meter']['readings'][0]['currentReading']
-        : 0.0;
+  Future<void> _executeInstallation(String workOrderId) async {
+    final meterCodeController = TextEditingController();
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -53,43 +50,23 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Registrar Lectura',
+        title: const Text('Registrar Instalación',
             style: TextStyle(
                 fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Lectura Anterior:',
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
-                  Text('$previousReading m³',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'monospace')),
-                ],
-              ),
-            ),
+            const Text(
+                'Ingrese el código de serie del medidor físico que acaba de instalar:',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
             const SizedBox(height: 16),
             TextField(
-              controller: readingController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'monospace'),
-              textAlign: TextAlign.center,
+              controller: meterCodeController,
               decoration: InputDecoration(
-                labelText: 'Nueva Lectura (m³)',
-                floatingLabelAlignment: FloatingLabelAlignment.center,
+                labelText: 'Código del Medidor',
+                hintText: 'Ej. ELP-2026-X',
+                prefixIcon: const Icon(LucideIcons.hash),
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -105,12 +82,12 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
           ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor:
-                      const Color(0xFF8B5CF6), // Purple para lecturas
+                      const Color(0xFF0284C7), // Sky blue para instalaciones
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8))),
               onPressed: () {
-                if (readingController.text.trim().isEmpty) return;
+                if (meterCodeController.text.trim().isEmpty) return;
                 Navigator.pop(context, true);
               },
               child: const Text('CONTINUAR',
@@ -121,10 +98,6 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
     );
 
     if (confirm != true) return;
-
-    final double? newValue = double.tryParse(readingController.text);
-    if (newValue == null) return;
-
     setState(() => _isLoading = true);
 
     try {
@@ -134,51 +107,26 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
       final double lat = position?.latitude ?? -19.03332;
       final double lng = position?.longitude ?? -65.26274;
       String finalPhotoUrl =
-          "https://via.placeholder.com/600x400.png?text=Evidencia+Lectura";
+          "https://via.placeholder.com/600x400.png?text=Evidencia+Instalacion";
 
       if (photoFile != null) {
         finalPhotoUrl =
             await ref.read(uploadRepositoryProvider).uploadImage(photoFile);
       }
 
-      // 🔥 Consumimos el nuevo endpoint de la Orden de Trabajo
-      final response =
-          await ref.read(workOrderRepositoryProvider).executeReading(
-                workOrderId: order['id'],
-                currentReading: newValue,
-                lat: lat,
-                lng: lng,
-                photoUrl: finalPhotoUrl,
-              );
+      await ref.read(workOrderRepositoryProvider).executeInstallation(
+            workOrderId: workOrderId,
+            meterCode: meterCodeController.text.trim().toUpperCase(),
+            lat: lat,
+            lng: lng,
+            photoUrl: finalPhotoUrl,
+          );
 
       if (!mounted) return;
-
-      // Manejamos la alerta de fuga si el backend la detecta
-      if (response['isLeakAlert'] == true) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Row(children: [
-              Icon(LucideIcons.alertTriangle, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('⚠️ ALERTA DE CONSUMO')
-            ]),
-            content: Text(
-                'El consumo registrado (${response['consumption']} m³) es inusualmente alto. Por favor, verifique visualmente si hay fugas en la conexión del cliente.'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('ENTENDIDO'))
-            ],
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Lectura registrada y factura generada con éxito.'),
-            backgroundColor: Color(0xFF10B981)));
-      }
-
-      _loadReadingOrders();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Instalación registrada y cliente activado con éxito.'),
+          backgroundColor: Color(0xFF10B981)));
+      _loadInstallations();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Fallo: $e'),
@@ -201,14 +149,14 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('RUTA MENSUAL',
+                    const Text('NUEVOS SERVICIOS',
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.5,
                             color: Color(0xFF64748B))),
                     const SizedBox(height: 4),
-                    const Text('Lecturas',
+                    const Text('Instalaciones',
                         style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -217,7 +165,7 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
                   ],
                 ),
                 IconButton(
-                    onPressed: _loadReadingOrders,
+                    onPressed: _loadInstallations,
                     icon: const Icon(LucideIcons.refreshCw,
                         size: 20, color: Color(0xFF0F172A))),
               ],
@@ -228,10 +176,10 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
                   child: Center(
                       child:
                           CircularProgressIndicator(color: Color(0xFF0F172A))))
-            else if (_readingOrders.isEmpty)
+            else if (_installations.isEmpty)
               const Expanded(
                   child: Center(
-                      child: Text('No tienes órdenes de lectura pendientes.',
+                      child: Text('No tienes instalaciones pendientes hoy.',
                           style: TextStyle(
                               color: Color(0xFF64748B),
                               fontWeight: FontWeight.w500))))
@@ -239,10 +187,10 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
               Expanded(
                 child: ListView.separated(
                   physics: const BouncingScrollPhysics(),
-                  itemCount: _readingOrders.length,
+                  itemCount: _installations.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 16),
                   itemBuilder: (context, index) =>
-                      _buildReadingItem(_readingOrders[index]),
+                      _buildInstallationItem(_installations[index]),
                 ),
               ),
           ],
@@ -251,10 +199,8 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
     );
   }
 
-  Widget _buildReadingItem(dynamic order) {
+  Widget _buildInstallationItem(dynamic order) {
     final customer = order['customer'];
-    final meter = order['meter'];
-
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -277,28 +223,49 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFF3E8FF),
+                    color: const Color(0xFFF0F9FF),
                     borderRadius: BorderRadius.circular(4)),
-                child: Text('MEDIDOR: ${meter?['code'] ?? 'N/A'}',
-                    style: const TextStyle(
+                child: const Text('NUEVO MEDIDOR',
+                    style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF7E22CE),
+                        color: Color(0xFF0284C7),
                         letterSpacing: 1.0)),
               ),
-              const Icon(LucideIcons.scanLine,
-                  color: Color(0xFF7E22CE), size: 18),
+              const Icon(LucideIcons.wrench,
+                  color: Color(0xFF0284C7), size: 18),
             ],
           ),
           const SizedBox(height: 16),
-          Text(customer?['fullName'] ?? 'Cliente',
+          Text(customer?['fullName'] ?? 'Cliente Nuevo',
               style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF0F172A))),
           const SizedBox(height: 4),
-          Text(customer?['address'] ?? 'Dirección',
+          Text(customer?['address'] ?? 'Dirección Pendiente',
               style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+          if (order['description'] != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(LucideIcons.info,
+                      size: 14, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Text(order['description'],
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF64748B)))),
+                ],
+              ),
+            )
+          ],
           const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
               child: Divider(color: Color(0xFFE2E8F0), height: 1)),
@@ -312,8 +279,9 @@ class _TechReadingsTabState extends ConsumerState<TechReadingsTab> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: _isLoading ? null : () => _executeReading(order),
-              child: const Text('REGISTRAR LECTURA',
+              onPressed:
+                  _isLoading ? null : () => _executeInstallation(order['id']),
+              child: const Text('INSTALAR MEDIDOR',
                   style: TextStyle(
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.0,

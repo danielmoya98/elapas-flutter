@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../providers/auth_provider.dart';
 import '../repositories/auth_repository.dart';
+import 'register_screen.dart'; // Importante importar la nueva pantalla
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -53,8 +54,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Diseño Suizo: Mucho espacio en blanco, tipografía fuerte, sin distracciones.
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -65,8 +66,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo / Título tipográfico
-                  const Icon(LucideIcons.droplets, size: 48),
+                  const Icon(LucideIcons.droplets,
+                      size: 48, color: Color(0xFF0F172A)),
                   const SizedBox(height: 24),
                   const Text(
                     'ELAPAS',
@@ -74,6 +75,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -1.5,
+                      color: Color(0xFF0F172A),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -83,19 +85,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2.0,
-                      color: Colors.grey,
+                      color: Color(0xFF64748B),
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
 
-                  // Inputs
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Correo Electrónico o CI',
-                      prefixIcon: Icon(LucideIcons.user),
+                    decoration: InputDecoration(
+                      labelText: 'Correo Electrónico',
+                      prefixIcon: const Icon(LucideIcons.user),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     validator: (value) =>
                         value!.isEmpty ? 'Campo requerido' : null,
@@ -107,6 +110,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       prefixIcon: const Icon(LucideIcons.lock),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
@@ -122,8 +127,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Botón
                   ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F172A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
                     onPressed: _isLoading ? null : _handleLogin,
                     child: _isLoading
                         ? const SizedBox(
@@ -134,8 +145,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('INICIAR SESIÓN'),
+                        : const Text('INICIAR SESIÓN',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.0)),
                   ),
+                  const SizedBox(height: 16),
+
+                  // 🔥 NUEVO: Botón para ir al registro
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const RegisterScreen()),
+                      );
+                    },
+                    child: const Text(
+                      '¿Nuevo cliente? Solicitar instalación',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
                 ],
               ),
             ),

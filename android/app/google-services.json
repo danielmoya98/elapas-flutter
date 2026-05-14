@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "26145555943",
+    "project_id": "elapas-ed733",
+    "storage_bucket": "elapas-ed733.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:26145555943:android:e998b1488f762f7cb62942",
+        "android_client_info": {
+          "package_name": "com.example.elapas_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD40uy8CkOsffXp88Om3jAXXxMqfiTkVyY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

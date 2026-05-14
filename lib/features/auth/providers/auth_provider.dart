@@ -55,7 +55,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated, role: appRole, email: email);
   }
 
-  // --- AQUÍ ESTÁ LA FUNCIÓN DENTRO DE LA CLASE ---
   Future<void> login(
       AuthRepository authRepo, String email, String password) async {
     try {
@@ -68,6 +67,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final role = user['role'];
 
       await loginSuccess(token, role, user['email']);
+    } catch (e) {
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+      rethrow;
+    }
+  }
+
+  // 🔥 NUEVO: Función para registrar al cliente
+  Future<void> register(
+      AuthRepository authRepo, Map<String, dynamic> customerData) async {
+    try {
+      state = state.copyWith(status: AuthStatus.checking);
+
+      // Solo lo registramos, el login debe hacerlo el usuario después o podemos
+      // forzar el login automático si el backend devolviera el token.
+      await authRepo.register(customerData);
+
+      // Como el registro fue exitoso, lo dejamos desautenticado para que inicie sesión
+      state = state.copyWith(status: AuthStatus.unauthenticated);
     } catch (e) {
       state = state.copyWith(status: AuthStatus.unauthenticated);
       rethrow;
