@@ -27,7 +27,7 @@ class AuthRepository {
     }
   }
 
-  // 🔥 NUEVO: Método para registrar al cliente
+  // Método para registrar al cliente
   Future<Map<String, dynamic>> register(Map<String, dynamic> data) async {
     try {
       final response = await _dio.post('/auth/register', data: data);
@@ -42,6 +42,20 @@ class AuthRepository {
         throw Exception(message ?? 'Error al registrar la cuenta');
       }
       throw Exception('Error de conexión con el servidor');
+    }
+  }
+
+  // 🔥 NUEVO: Método para enviar el token FCM al backend
+  Future<void> updateFcmToken(String fcmToken) async {
+    try {
+      await _dio.patch('/auth/fcm-token', data: {
+        'fcmToken': fcmToken,
+      });
+      print('Token FCM sincronizado con el backend exitosamente.');
+    } catch (e) {
+      print('Error al actualizar FCM Token en el servidor: $e');
+      // No lanzamos la excepción hacia arriba porque un fallo en el token
+      // no debería impedir que el usuario inicie sesión en la app.
     }
   }
 }

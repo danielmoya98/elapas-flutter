@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // 🔥 IMPORTACIÓN DE FIREBASE AÑADIDA
 import '../repositories/auth_repository.dart';
 
 enum AuthStatus { checking, unauthenticated, authenticated }
@@ -60,27 +61,46 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       state = state.copyWith(status: AuthStatus.checking);
 
+      // 1. Hacemos el login en el backend
       final data = await authRepo.login(email, password);
 
       final token = data['accessToken'];
       final user = data['user'];
       final role = user['role'];
 
+      // 2. Guardamos la sesión localmente
       await loginSuccess(token, role, user['email']);
+
+      // 🔥 3. NUEVO: Obtenemos el token de notificaciones de este celular y lo mandamos al backend
+      try {
+        // Pedimos permisos al sistema operativo (Obligatorio en iOS 14+ y Android 13+)
+        await FirebaseMessaging.instance.requestPermission();
+
+        // Extraemos el token único de este dispositivo
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+
+        // Si Firebase nos devolvió un token válido, lo sincronizamos con NestJS
+        if (fcmToken != null) {
+          await authRepo.updateFcmToken(fcmToken);
+        }
+      } catch (e) {
+        // Envolvemos esto en un try-catch independiente para que si Firebase falla
+        // por falta de internet o configuraciones, el usuario igual pueda entrar a la app.
+        print('Advertencia - Omitiendo configuración de FCM: $e');
+      }
     } catch (e) {
       state = state.copyWith(status: AuthStatus.unauthenticated);
       rethrow;
     }
   }
 
-  // 🔥 NUEVO: Función para registrar al cliente
+  // Función para registrar al cliente
   Future<void> register(
       AuthRepository authRepo, Map<String, dynamic> customerData) async {
     try {
       state = state.copyWith(status: AuthStatus.checking);
 
-      // Solo lo registramos, el login debe hacerlo el usuario después o podemos
-      // forzar el login automático si el backend devolviera el token.
+      // Solo lo registramos, el login debe hacerlo el usuario después
       await authRepo.register(customerData);
 
       // Como el registro fue exitoso, lo dejamos desautenticado para que inicie sesión
